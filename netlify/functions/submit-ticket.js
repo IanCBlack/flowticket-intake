@@ -1,74 +1,46 @@
-// netlify/functions/submit-ticket.js
-
-const cors = (origin='*') => ({
-  'Access-Control-Allow-Origin': origin,
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+const apiRes = await fetch(url, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'ApplicationAccessKey': accessKey,
+  },
+  body: JSON.stringify(body),
 });
 
-exports.handler = async (event) => {
-  const ORIGIN = process.env.ALLOWED_ORIGIN || '*';
+const text = await apiRes.text();
+let json;
+try { json = JSON.parse(text); } catch { json = null; }
 
-  // Let the browser ask permission (CORS)
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers: cors(ORIGIN), body: '' };
-  }
+// Log to Netlify → Deploys → Functions logs (handy for debugging)
+console.log('AppSheet status:', apiRes.status);
+console.log('AppSheet body:', text);
 
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers: cors(ORIGIN), body: 'Use POST' };
-  }
+// If HTTP not OK, bubble it up
+if (!apiRes.ok) {
+  return {
+    statusCode: 200,
+    headers: cors(ORIGIN),
+    body: JSON.stringify({ ok: false, error: `AppSheet ${apiRes.status}: ${text}` }),
+  };
+}
 
-  try {
-    const p = JSON.parse(event.body || '{}');
+// If body contains errors, bubble those up too
+const bodyErrors =
+  (json && json.Errors) ||
+  (json && json.errors) ||
+  (json && json.Rows && json.Rows[0] && json.Rows[0].Errors);
 
-    // Simple “is the form filled?” check
-    if (!p.email || !p.name) {
-      return { statusCode: 200, headers: cors(ORIGIN), body: JSON.stringify({ ok:false, error:'Name + Email required' }) };
-    }
+if (bodyErrors && bodyErrors.length) {
+  return {
+    statusCode: 200,
+    headers: cors(ORIGIN),
+    body: JSON.stringify({ ok: false, error: bodyErrors.join('; ') }),
+  };
+}
 
-    // Turn form fields into an AppSheet row. (Make these names match your table!)
-    const priorityMap = { Low:'P3 - Low', Medium:'P2 - Medium', High:'P1 - High', 'On-site':'P0 - Critical' };
-    const row = {
-      ReporterEmail: (p.email || '').trim(),
-      ReporterCompany: (p.company || '').trim(),
-      ReporterPhone: (p.phone || '').trim(),
-
-      IntakeChannel: 'Web',
-      Topic: p.topic || 'On-site Troubleshooting',
-      Urgency: p.urgency || 'Medium',
-      Priority: priorityMap[p.urgency] || 'P2 - Medium',
-      Status: 'New',
-
-      LocationName: (p.locationName || '').trim(),
-      Series: (p.series || '').trim(),
-      SerialNumber: (p.serialNumber || '').trim(),
-      SoftwareVersion: (p.softwareVersion || '').trim(),
-      ActiveAlarms: Array.isArray(p.alarms) ? p.alarms : [],
-      Description: (p.description || '').trim(),
-
-      CreatedAt: new Date().toISOString(),
-    };
-
-    const appId = process.env.APPSHEET_APP_ID;
-    const accessKey = process.env.APPSHEET_ACCESS_KEY;
-    const tableName = process.env.TABLE_NAME || 'Tickets';
-
-    const url = `https://api.appsheet.com/api/v2/apps/${appId}/tables/${encodeURIComponent(tableName)}/Action`;
-    const body = { Action:'Add', Properties:{ Locale:'en-US' }, Rows:[row] };
-
-    const res = await fetch(url, {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json', 'ApplicationAccessKey': accessKey },
-      body: JSON.stringify(body),
-    });
-
-    const text = await res.text();
-    if (!res.ok) {
-      return { statusCode:200, headers: cors(ORIGIN), body: JSON.stringify({ ok:false, error:`AppSheet ${res.status}: ${text}` }) };
-    }
-    return { statusCode:200, headers: cors(ORIGIN), body: JSON.stringify({ ok:true }) };
-
-  } catch (err) {
-    return { statusCode:200, headers: cors(ORIGIN), body: JSON.stringify({ ok:false, error:String(err) }) };
-  }
+// Otherwise, success
+return {
+  statusCode: 200,
+  headers: cors(ORIGIN),
+  body: JSON.stringify({ ok: true, result: json }),
 };
