@@ -1,0 +1,97 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FlowTicket – Support Request</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:0;background:#f6f8fb}
+    .wrap{max-width:880px;margin:40px auto;padding:0 16px}
+    .card{background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.06);padding:24px}
+    label{display:block;margin:12px 0 6px;color:#374151}
+    input,select,textarea{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:16px}
+    button{margin-top:16px;background:#4c6d8e;color:#fff;border:none;border-radius:12px;padding:12px 18px;font-weight:700;cursor:pointer}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .note{margin-top:10px;color:#6b7280}
+    .ok{color:#065f46}.err{color:#b91c1c}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h2>FlowSite Tech Support Request</h2>
+      <form id="f">
+        <div class="row">
+          <div><label>Name *</label><input name="name" required></div>
+          <div><label>Email *</label><input name="email" type="email" required></div>
+          <div><label>Company *</label><input name="company" required></div>
+          <div><label>Phone</label><input name="phone"></div>
+        </div>
+
+        <label>Urgency</label>
+        <select name="urgency">
+          <option>Low</option><option selected>Medium</option><option>High</option><option>On-site</option>
+        </select>
+
+        <label>Topic</label>
+        <select name="topic">
+          <option selected>On-site Troubleshooting</option>
+          <option>FlowSite Requests</option>
+          <option>Other</option>
+        </select>
+
+        <div class="row">
+          <div><label>Location Name *</label><input name="locationName" required></div>
+          <div><label>Series *</label><input name="series" required></div>
+          <div><label>Serial Number *</label><input name="serialNumber" required></div>
+          <div><label>Software Version *</label><input name="softwareVersion" required></div>
+        </div>
+
+        <label>Active Alarms</label>
+        <div>
+          <label><input type="checkbox" name="alarms" value="Pump Fail"> Pump Fail</label>
+          <label><input type="checkbox" name="alarms" value="High/Low Pressure"> High/Low Pressure</label>
+          <label><input type="checkbox" name="alarms" value="Stack Overflow"> Stack Overflow</label>
+          <label><input type="checkbox" name="alarms" value="Low Tank"> Low Tank</label>
+        </div>
+
+        <label>Description *</label>
+        <textarea name="description" rows="6" required></textarea>
+
+        <button type="submit">Submit Request</button>
+        <div class="note" id="note"></div>
+      </form>
+    </div>
+  </div>
+
+<script>
+const ENDPOINT = '/.netlify/functions/submit-ticket'; // this is our helper
+
+document.getElementById('f').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const payload = {
+    name: fd.get('name'),
+    email: fd.get('email'),
+    company: fd.get('company'),
+    phone: fd.get('phone') || '',
+    urgency: fd.get('urgency') || 'Medium',
+    topic: fd.get('topic') || 'On-site Troubleshooting',
+    locationName: fd.get('locationName'),
+    series: fd.get('series'),
+    serialNumber: fd.get('serialNumber'),
+    softwareVersion: fd.get('softwareVersion'),
+    alarms: fd.getAll('alarms'),
+    description: fd.get('description')
+  };
+  const note = document.getElementById('note'); note.textContent = '';
+  try{
+    const res = await fetch(ENDPOINT,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (data.ok){ note.textContent='Submitted ✅'; note.className='note ok'; e.target.reset(); }
+    else { note.textContent='Failed: ' + (data.error || 'Unknown'); note.className='note err'; }
+  }catch(err){ note.textContent='Network error: ' + err; note.className='note err'; }
+});
+</script>
+</body>
+</html>
