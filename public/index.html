@@ -212,71 +212,42 @@
   </div>
 
 <script>
-const $ = (s)=>document.querySelector(s);
-const $$ = (s)=>Array.from(document.querySelectorAll(s));
-function setRequired(names, on){ names.forEach(n => { const el = document.querySelector(`[name="${n}"]`); if (el) el.required = !!on; }); }
-function show(id, on){ const el = document.getElementById(id); if (el) el.classList.toggle('hidden', !on); }
+// ... keep all your existing helpers & visibility logic above ...
 
-function updateCategory(){
-  const v = (new FormData($('#ticketForm')).get('category')) || 'FlowSite Requests';
-  show('sec-ost', v==='On-Site Troubleshooting');
-  show('sec-sr',  v==='Service Request');
-  show('sec-fr',  v==='FlowSite Requests');
-  show('sec-scada', v==='SCADA/Comms');
-
-  setRequired([
-    'locationName_ost','product_ost','serial_ost','sw_ost',
-    'locationName_sr','product_sr','serial_sr','sw_sr',
-    'locationName_fr','product_fr','serial_fr','sw_fr',
-    'user_name_fr','user_email_fr','user_company_fr','serials_for_access_fr',
-    'locationName_sc','product_sc','serial_sc','sw_sc',
-    'other_desc_fr'
-  ], false);
-
-  if (v==='On-Site Troubleshooting') setRequired(['locationName_ost','product_ost','serial_ost'], true);
-  if (v==='Service Request') setRequired(['locationName_sr','product_sr','serial_sr'], true); // removed damaged_sr
-  if (v==='FlowSite Requests') updateFlowSiteType();
-  if (v==='SCADA/Comms') setRequired(['locationName_sc','product_sc','serial_sc'], true);
-}
-$$('input[name="category"]').forEach(r=>r.addEventListener('change', updateCategory));
-
-function updateFlowSiteType(){
-  const type = (new FormData($('#ticketForm')).get('frtype')) || 'Add Systems for Existing FlowSite User';
-  show('fr-dx',   type==='Diagnostics Assistance');
-  show('fr-add',  type==='Add Systems for New FlowSite User' || type==='Add Systems for Existing FlowSite User');
-  show('fr-other',type==='Other');
-
-  setRequired(['locationName_fr','product_fr','serial_fr','sw_fr','user_name_fr','user_email_fr','user_company_fr','serials_for_access_fr','other_desc_fr'], false);
-  if (type==='Diagnostics Assistance') setRequired(['locationName_fr','product_fr','serial_fr'], true);
-  if (type==='Add Systems for New FlowSite User' || type==='Add Systems for Existing FlowSite User') setRequired(['user_name_fr','user_email_fr','user_company_fr','serials_for_access_fr'], true);
-  if (type==='Other') setRequired(['other_desc_fr'], true);
-}
-$$('input[name="frtype"]').forEach(r=>r.addEventListener('change', updateFlowSiteType));
-
-updateCategory(); updateFlowSiteType();
-
-/* Submit to Netlify Function */
-const submitBtn = $('#submitBtn');
-const modal = $('#submitModal');
-const modalCloseBtn = $('#modalCloseBtn');
+/* ===== Real submit to Netlify Function ===== */
+const submitBtn = document.getElementById('submitBtn');
+const modal = document.getElementById('submitModal');
+const modalCloseBtn = document.getElementById('modalCloseBtn');
 function openModal(){ modal.classList.remove('hidden'); modalCloseBtn && modalCloseBtn.focus(); }
 function closeModal(){ modal.classList.add('hidden'); }
 modal.addEventListener('click', (ev)=>{ if(ev.target===modal) closeModal(); });
 modalCloseBtn.addEventListener('click', closeModal);
 document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeModal(); });
 
-$('#ticketForm').addEventListener('submit', async (e)=>{
+document.getElementById('ticketForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   submitBtn.disabled = true; submitBtn.textContent = 'Submitting…';
+
   try{
-    const formJson = Object.fromEntries(new FormData(e.target).entries());
+    const fd = new FormData(e.target);
+    const formJson = Object.fromEntries(fd.entries());
+
+    // Capture ALL checked alarms (checkbox group). This preserves multiple selections.
+    const alarms = fd.getAll('alarms_ost');
+    if (alarms && alarms.length) {
+      formJson.alarms_ost = alarms;
+    }
+
     const res = await fetch('/.netlify/functions/submit-ticket', {
       method:'POST',
       headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify({ form: formJson })
     });
     if(!res.ok){ throw new Error(`HTTP ${res.status} – ${await res.text()}`); }
-    e.target.reset(); updateCategory(); updateFlowSiteType();
+
+    // Success
+    e.target.reset();
+    updateCategory(); updateFlowSiteType();
     openModal();
   }catch(err){
     alert(`Submit failed: ${err.message}`);
@@ -285,9 +256,11 @@ $('#ticketForm').addEventListener('submit', async (e)=>{
   }
 });
 
-$('#resetBtn').addEventListener('click', ()=>{
-  const form = $('#ticketForm'); form.reset(); updateCategory(); updateFlowSiteType();
+// Reset button unchanged...
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  const form = document.getElementById('ticketForm'); form.reset(); updateCategory(); updateFlowSiteType();
 });
 </script>
+
 </body>
 </html>
