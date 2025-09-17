@@ -1,101 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FlowCore Tech Support Request Portal</title>
+<style>
+  :root{ --brand:#4c6d8e; --bg:#4c6d8e; --card:#ffffff; --ink:#0f172a; --muted:#617085; --ring:#d6dee8; }
+  body{ margin:0; background:var(--bg); font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial; color:var(--ink) }
+  *,*::before,*::after{ box-sizing:border-box }
+  .wrap{ max-width:920px; margin:32px auto; padding:0 16px }
+  .card{ background:var(--card); border-radius:14px; box-shadow:0 8px 24px rgba(0,0,0,.06); padding:24px }
+  h1{ margin:0 0 16px; font-weight:800; letter-spacing:.2px; color:var(--brand) }
+  h3{ margin:22px 0 10px; font-weight:700; color:var(--brand) }
+  label{ display:block; font-size:14px; color:var(--muted); margin:8px 0 6px }
+  .req{ color:#b91c1c; margin-left:4px }
+  input,select,textarea{ width:100%; border:1px solid var(--ring); border-radius:10px; padding:11px 12px; font-size:16px; background:#fff; outline:none }
+  input:focus,select:focus,textarea:focus{ border-color:var(--brand); box-shadow:0 0 0 3px rgba(76,109,142,.15) }
+  .grid{ display:grid; gap:12px }
+  .g2{ grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start }
+  @media (max-width:820px){ .g2{ grid-template-columns:1fr } }
+  textarea{ resize:vertical; max-width:100% }
+
+  /* Chips */
+  .chip-list{ display:flex; flex-wrap:wrap; gap:10px }
+  .chip input{ position:absolute; opacity:0 }
+  .chip span{ display:inline-flex; align-items:center; gap:8px; border:1px solid var(--ring); border-radius:999px; padding:8px 12px; background:#fff; color:#111827; transition:all .12s }
+  .chip input:focus+span{ box-shadow:0 0 0 3px rgba(76,109,142,.18) }
+  .chip input:checked+span{ background:var(--brand); color:#fff; border-color:var(--brand) }
+  .chip input:checked+span::before{ content:'\2713'; font-weight:700 }
+
+  /* Urgency compact radios */
+  .urgency-group{ display:flex; flex-wrap:wrap; column-gap:48px; row-gap:12px; align-items:flex-start }
+  .urgency-option{ display:flex; align-items:flex-start; gap:8px; font-weight:600 }
+  .urgency-option .utext{ display:flex; flex-direction:column; line-height:1.15 }
+  .urgency-option .utext small{ font-weight:400; color:#6b7280 }
+  .urgency-option input{ accent-color:var(--brand); margin-top:2px }
+
+  /* Vertical radio lists */
+  .list-group{ display:flex; flex-direction:column; gap:8px; align-items:flex-start; text-align:left; width:100% }
+  .list-option{ display:flex; align-items:center; gap:10px; margin:0; padding:4px 0; text-align:left }
+  .list-option input{ accent-color:var(--brand); margin:0 }
+  .list-option span{ display:inline-block; white-space:nowrap; text-align:left }
+
+  .subhead{ display:block; margin-top:16px; margin-bottom:8px; font-weight:800; font-size:1.125rem; color:var(--brand) }
+
+  /* Modal */
+  .modal-overlay{ position:fixed; inset:0; background:rgba(15,23,42,.55); backdrop-filter:saturate(1.2) blur(2px); display:flex; align-items:center; justify-content:center; padding:16px; z-index:1000 }
+  .modal{ position:relative; background:#fff; border-radius:18px; max-width:520px; width:100%; box-shadow:0 24px 72px rgba(0,0,0,.35); padding:22px; border:1px solid #e5e7eb }
+  .modal h2{ margin:4px 0 10px; color:#0f172a; font-weight:800; font-size:1.25rem; text-align:center }
+  .modal p{ margin:8px 0; color:#374151; text-align:center }
+  .modal-close{ position:absolute; top:10px; right:10px; background:transparent; border:none; border-radius:0; padding:6px 8px; font-weight:800; cursor:pointer; color:#111827 }
+  .modal-close:hover{ opacity:.75 }
+  .hidden{ display:none!important }
+
+  .row-end{ display:flex; flex-direction:column; align-items:center; gap:12px; margin-top:16px }
+  .actions{ display:flex; gap:10px; align-items:center; justify-content:center }
+  button{ background:var(--brand); color:#fff; border:none; border-radius:12px; padding:12px 16px; font-size:16px; font-weight:700; cursor:pointer; box-shadow:0 6px 18px rgba(76,109,142,.25) }
+
+  /* Mobile tweaks */
+  html,body{ overflow-x:hidden }
+  body{ -webkit-tap-highlight-color:transparent }
+  @media (max-width:480px){
+    .wrap{ margin:16px auto; padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px, env(safe-area-inset-right)) }
+    h1{ font-size:1.375rem } h3{ font-size:1rem }
+    input,select,textarea{ min-height:44px }
+    .actions{ flex-direction:column } .actions button{ width:100% }
+    .urgency-group{ flex-direction:column; column-gap:0; row-gap:8px }
+    .urgency-option input,.list-option input{ transform:scale(1.15) }
+    .list-option span{ white-space:normal }
+    .chip span{ padding:10px 14px }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>FlowCore Tech Support Request Portal</h1>
+
+      <form id="ticketForm">
+        <!-- Contact Information -->
+        <h3>Contact Information</h3>
+        <div class="grid g2">
+          <div><label>Name <span class="req">*</span></label><input name="name" required /></div>
+          <div><label>Email <span class="req">*</span></label><input type="email" name="email" required /></div>
+          <div><label>Company <span class="req">*</span></label><input name="company" required /></div>
+          <div><label>Phone</label><input type="tel" name="phone" /></div>
+        </div>
+
+        <!-- Urgency -->
+        <h3>Urgency</h3>
+        <div class="urgency-group" id="urgency">
+          <label class="urgency-option"><input type="radio" name="urgency" value="Low"><span class="utext"><span>Low</span><small>(est. 1 week response time)</small></span></label>
+          <label class="urgency-option"><input type="radio" name="urgency" value="Medium" checked><span class="utext"><span>Medium</span><small>(est. 2–3 days response time)</small></span></label>
+          <label class="urgency-option"><input type="radio" name="urgency" value="High"><span class="utext"><span>High</span><small>(est. 1 day response time)</small></span></label>
+          <label class="urgency-option"><input type="radio" name="urgency" value="On-site"><span class="utext"><span>On-site</span><small>(We will contact you ASAP)</small></span></label>
+        </div>
+
+        <!-- Category of Support -->
+        <h3>Category of Support</h3>
+        <div class="list-group" id="category">
+          <label class="list-option"><input type="radio" name="category" value="On-Site Troubleshooting"><span>On-site Troubleshooting</span></label>
+          <label class="list-option"><input type="radio" name="category" value="Service Request"><span>Service Request</span></label>
+          <label class="list-option"><input type="radio" name="category" value="FlowSite Requests" checked><span>FlowSite Requests</span></label>
+          <label class="list-option"><input type="radio" name="category" value="SCADA/Comms"><span>SCADA/Comms</span></label>
+          <label class="list-option"><input type="radio" name="category" value="Other"><span>Other (specify in 'Description of Request')</span></label>
+        </div>
+
+        <!-- On-Site Troubleshooting -->
+        <div id="sec-ost">
+          <div class="grid g2">
+            <div><label>Location Name <span class="req">*</span></label><input name="locationName_ost" required /></div>
+            <div><label>Product <span class="req">*</span></label><input name="product_ost" required placeholder="e.g., Phantom, Raptor, Wellmark Pump" /></div>
+            <div><label>Serial Number <span class="req">*</span></label><input name="serial_ost" placeholder="e.g., 528P, 839R" /></div>
+            <div><label>Software Version</label><input name="sw_ost" /></div>
+          </div>
+          <label style="margin-top:10px">Select All Active Alarms (if any)</label>
+          <div class="chip-list">
+            <label class="chip"><input type="checkbox" name="alarms_ost" value="Pump Fail"><span>Pump Fail</span></label>
+            <label class="chip"><input type="checkbox" name="alarms_ost" value="Valve Leak"><span>Valve Leak</span></label>
+            <label class="chip"><input type="checkbox" name="alarms_ost" value="High/Low Pressure"><span>High/Low Pressure</span></label>
+            <label class="chip"><input type="checkbox" name="alarms_ost" value="Stack Overflow"><span>Stack Overflow</span></label>
+            <label class="chip"><input type="checkbox" name="alarms_ost" value="Stack Empty or Line Blocked"><span>Stack Empty or Line Blocked</span></label>
+            <label class="chip"><input type="checkbox" name="alarms_ost" value="High Deviation"><span>High Deviation</span></label>
+            <label class="chip"><input type="checkbox" name="alarms_ost" value="Low Tank"><span>Low Tank</span></label>
+            <label class="chip"><input type="checkbox" name="alarms_ost" value="Pressure Transducer Fail / Malfunction"><span>Pressure Transducer Fail / Malfunction</span></label>
+            <label class="chip"><input type="checkbox" name="alarms_ost" value="Emergency Shutdown"><span>Emergency Shutdown</span></label>
+          </div>
+        </div>
+
+        <!-- Service Request -->
+        <div id="sec-sr" class="hidden">
+          <div class="grid g2">
+            <div><label>Location Name <span class="req">*</span></label><input name="locationName_sr" /></div>
+            <div><label>Product <span class="req">*</span></label><input name="product_sr" placeholder="e.g., Phantom, Raptor, Wellmark Pump" /></div>
+            <div><label>Serial Number <span class="req">*</span></label><input name="serial_sr" placeholder="e.g., 528P, 839R" /></div>
+            <div><label>Software Version</label><input name="sw_sr" /></div>
+          </div>
+          <label>Damaged Equipment <span class="req">*</span></label>
+          <textarea name="damaged_sr" rows="5" placeholder="Describe damaged equipment"></textarea>
+        </div>
+
+        <!-- FlowSite Requests -->
+        <div id="sec-fr" class="hidden">
+          <label class="subhead">FlowSite Request Type</label>
+          <div class="list-group" id="frtype">
+            <label class="list-option"><input type="radio" name="frtype" value="Diagnostics Assistance"><span>Diagnostics Assistance</span></label>
+            <label class="list-option"><input type="radio" name="frtype" value="Add Systems for New FlowSite User"><span>Add System(s) for New FlowSite User</span></label>
+            <label class="list-option"><input type="radio" name="frtype" value="Add Systems for Existing FlowSite User" checked><span>Add System(s) for Existing FlowSite User</span></label>
+            <label class="list-option"><input type="radio" name="frtype" value="Other"><span>Other</span></label>
+          </div>
+
+          <div id="fr-dx">
+            <div class="grid g2">
+              <div><label>Location Name <span class="req">*</span></label><input name="locationName_fr" /></div>
+              <div><label>Product <span class="req">*</span></label><input name="product_fr" placeholder="e.g., Phantom, Raptor, Wellmark Pump" /></div>
+              <div><label>Serial Number <span class="req">*</span></label><input name="serial_fr" placeholder="e.g., 528P, 839R" /></div>
+              <div><label>Software Version</label><input name="sw_fr" /></div>
+            </div>
+          </div>
+
+          <div id="fr-add" class="hidden">
+            <div class="grid g2">
+              <div><label>Name <span class="req">*</span></label><input name="user_name_fr" /></div>
+              <div><label>Email <span class="req">*</span></label><input name="user_email_fr" type="email" /></div>
+              <div><label>Company <span class="req">*</span></label><input name="user_company_fr" /></div>
+              <div><label>Phone</label><input type="tel" name="user_phone_fr" /></div>
+            </div>
+            <label>List of Serial Numbers for User to Gain Access <span class="req">*</span></label>
+            <textarea name="serials_for_access_fr" rows="5" placeholder="One per line or comma-separated"></textarea>
+          </div>
+
+          <div id="fr-other" class="hidden">
+            <label>Description of Other FlowSite Request <span class="req">*</span></label>
+            <textarea name="other_desc_fr" rows="5" placeholder="Describe your FlowSite request"></textarea>
+          </div>
+        </div>
+
+        <!-- SCADA/Comms -->
+        <div id="sec-scada" class="hidden">
+          <div class="grid g2">
+            <div><label>Location Name <span class="req">*</span></label><input name="locationName_sc" /></div>
+            <div><label>Product <span class="req">*</span></label><input name="product_sc" placeholder="e.g., Phantom, Raptor, Wellmark Pump" /></div>
+            <div><label>Serial Number <span class="req">*</span></label><input name="serial_sc" placeholder="e.g., 528P, 839R" /></div>
+            <div><label>Software Version</label><input name="sw_sc" /></div>
+          </div>
+        </div>
+
+        <!-- Details of Request -->
+        <h3>Details of Request</h3>
+        <label>Subject <span class="req">*</span></label>
+        <input name="subject" required />
+        <label>Description</label>
+        <textarea name="description" rows="6" placeholder="Provide details that will help us help you."></textarea>
+
+        <div class="row-end">
+          <div class="actions">
+            <button type="submit" id="submitBtn">Submit Request</button>
+            <button type="button" id="resetBtn" style="background:#e5e7eb;color:#111827;box-shadow:none">Reset</button>
+          </div>
+        </div>
+      </form>
+
+      <!-- Confirmation Modal -->
+      <div id="submitModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal">
+          <button class="modal-close" id="modalCloseBtn" aria-label="Close">✕</button>
+          <h2 id="modalTitle">Form Submitted</h2>
+          <p>Your tech support request has been submitted and will automatically be routed to the appropriate FlowCore representative.</p>
+          <p>Thank you.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
 <script>
-// === Helpers ===
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => Array.from(document.querySelectorAll(sel));
-function setRequired(names, on){ names.forEach(n => { const el = document.querySelector(`[name="${n}"]`); if (el) el.required = !!on; }); }
+const $ = (s)=>document.querySelector(s);
+const $$ = (s)=>Array.from(document.querySelectorAll(s));
+function setRequired(names, on){ names.forEach(n => { const el = document.querySelector(\`[name="\${n}"]\`); if (el) el.required = !!on; }); }
 function show(id, on){ const el = document.getElementById(id); if (el) el.classList.toggle('hidden', !on); }
 
-// Category switching
 function updateCategory(){
   const v = (new FormData($('#ticketForm')).get('category')) || 'FlowSite Requests';
-  show('sec-ost', v === 'On-Site Troubleshooting');
-  show('sec-sr',  v === 'Service Request');
-  show('sec-fr',  v === 'FlowSite Requests');
-  show('sec-scada', v === 'SCADA/Comms');
+  show('sec-ost', v==='On-Site Troubleshooting');
+  show('sec-sr',  v==='Service Request');
+  show('sec-fr',  v==='FlowSite Requests');
+  show('sec-scada', v==='SCADA/Comms');
 
-  // reset required flags
-  setRequired([
-    'locationName_ost','product_ost','serial_ost','sw_ost',
-    'locationName_sr','product_sr','serial_sr','sw_sr','damaged_sr',
-    'locationName_fr','product_fr','serial_fr','sw_fr',
-    'user_name_fr','user_email_fr','user_company_fr','serials_for_access_fr',
-    'locationName_sc','product_sc','serial_sc','sw_sc',
-    'other_desc_fr'
-  ], false);
-
-  if (v === 'On-Site Troubleshooting') setRequired(['locationName_ost','product_ost','serial_ost'], true);
-  if (v === 'Service Request') setRequired(['locationName_sr','product_sr','serial_sr','damaged_sr'], true);
-  if (v === 'FlowSite Requests') updateFlowSiteType();
-  if (v === 'SCADA/Comms') setRequired(['locationName_sc','product_sc','serial_sc'], true);
+  setRequired(['locationName_ost','product_ost','serial_ost','sw_ost','locationName_sr','product_sr','serial_sr','sw_sr','damaged_sr','locationName_fr','product_fr','serial_fr','sw_fr','user_name_fr','user_email_fr','user_company_fr','serials_for_access_fr','locationName_sc','product_sc','serial_sc','sw_sc','other_desc_fr'], false);
+  if (v==='On-Site Troubleshooting') setRequired(['locationName_ost','product_ost','serial_ost'], true);
+  if (v==='Service Request') setRequired(['locationName_sr','product_sr','serial_sr','damaged_sr'], true);
+  if (v==='FlowSite Requests') updateFlowSiteType();
+  if (v==='SCADA/Comms') setRequired(['locationName_sc','product_sc','serial_sc'], true);
 }
 $$('input[name="category"]').forEach(r=>r.addEventListener('change', updateCategory));
 
-// FlowSite Requests subtype
 function updateFlowSiteType(){
   const type = (new FormData($('#ticketForm')).get('frtype')) || 'Add Systems for Existing FlowSite User';
-  show('fr-dx', type === 'Diagnostics Assistance');
-  show('fr-add', type === 'Add Systems for New FlowSite User' || type === 'Add Systems for Existing FlowSite User');
-  show('fr-other', type === 'Other');
+  show('fr-dx',   type==='Diagnostics Assistance');
+  show('fr-add',  type==='Add Systems for New FlowSite User' || type==='Add Systems for Existing FlowSite User');
+  show('fr-other',type==='Other');
 
   setRequired(['locationName_fr','product_fr','serial_fr','sw_fr','user_name_fr','user_email_fr','user_company_fr','serials_for_access_fr','other_desc_fr'], false);
-  if (type === 'Diagnostics Assistance') setRequired(['locationName_fr','product_fr','serial_fr'], true);
-  if (type === 'Add Systems for New FlowSite User' || type === 'Add Systems for Existing FlowSite User') setRequired(['user_name_fr','user_email_fr','user_company_fr','serials_for_access_fr'], true);
-  if (type === 'Other') setRequired(['other_desc_fr'], true);
+  if (type==='Diagnostics Assistance') setRequired(['locationName_fr','product_fr','serial_fr'], true);
+  if (type==='Add Systems for New FlowSite User' || type==='Add Systems for Existing FlowSite User') setRequired(['user_name_fr','user_email_fr','user_company_fr','serials_for_access_fr'], true);
+  if (type==='Other') setRequired(['other_desc_fr'], true);
 }
 $$('input[name="frtype"]').forEach(r=>r.addEventListener('change', updateFlowSiteType));
 
-// Init visibility/requireds
 updateCategory(); updateFlowSiteType();
 
-// === Submit (REAL function call) ===
+/* ===== REAL SUBMIT (Netlify Function) ===== */
 const btn = $('#submitBtn');
-const modal = document.getElementById('submitModal');
-const modalCloseBtn = document.getElementById('modalCloseBtn');
+const modal = $('#submitModal');
+const modalCloseBtn = $('#modalCloseBtn');
 
-function openModal(){ if(modal){ modal.classList.remove('hidden'); modalCloseBtn && modalCloseBtn.focus(); } }
-function closeModal(){ if(modal){ modal.classList.add('hidden'); } }
-modal && modal.addEventListener('click', (ev)=>{ if(ev.target===modal) closeModal(); });
-modalCloseBtn && modalCloseBtn.addEventListener('click', closeModal);
+function openModal(){ modal.classList.remove('hidden'); modalCloseBtn && modalCloseBtn.focus(); }
+function closeModal(){ modal.classList.add('hidden'); }
+modal.addEventListener('click', (ev)=>{ if(ev.target===modal) closeModal(); });
+modalCloseBtn.addEventListener('click', closeModal);
 document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeModal(); });
 
-document.getElementById('ticketForm').addEventListener('submit', async (e)=>{
+$('#ticketForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  btn.disabled = true;
-  btn.textContent = 'Submitting…';
-
-  try {
-    // send the whole form for logging; function will only write TicketID for now
+  btn.disabled = true; btn.textContent = 'Submitting…';
+  try{
     const formJson = Object.fromEntries(new FormData(e.target).entries());
-
     const res = await fetch('/.netlify/functions/submit-ticket', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ form: formJson })
     });
-
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`HTTP ${res.status} – ${text}`);
-    }
-
-    const data = await res.json();
-    // clear form + show confirmation
-    e.target.reset();
-    updateCategory(); updateFlowSiteType();
+    if(!res.ok){ throw new Error(`HTTP ${res.status} – ${await res.text()}`); }
+    await res.json(); // { ok: true, ticketId }
+    e.target.reset(); updateCategory(); updateFlowSiteType();
     openModal();
-
-  } catch (err) {
+  }catch(err){
     alert(`Submit failed: ${err.message}`);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Submit Request';
+  }finally{
+    btn.disabled = false; btn.textContent = 'Submit Request';
   }
 });
 
-// Reset button
-document.getElementById('resetBtn').addEventListener('click', ()=>{
-  const form = document.getElementById('ticketForm');
-  form.reset();
-  updateCategory(); updateFlowSiteType();
+$('#resetBtn').addEventListener('click', ()=>{
+  const form = $('#ticketForm'); form.reset(); updateCategory(); updateFlowSiteType();
 });
 </script>
+</body>
+</html>
