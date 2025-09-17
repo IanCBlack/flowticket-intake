@@ -29,12 +29,11 @@ exports.handler = async (event) => {
       return String(v || '').split(/[,\n\r]+/g).map(s=>s.trim()).filter(Boolean).join(', ');
     };
 
-    // Generate 8-char ref_# for key
+    // Generate 8-char key for [ref_#]
     const ref = crypto.randomUUID().replace(/-/g,'').slice(0,8).toUpperCase();
 
-    // Build the row using your sheet’s column headers (all text)
+    // Build the row – keys EXACTLY match your AppSheet column names
     const row = {
-      // metadata
       'ref_#': ref,
       submitted_at: new Date().toISOString(),
       intake_channel: 'Tech Support Request Portal',
@@ -47,8 +46,8 @@ exports.handler = async (event) => {
       phone: trim(form.phone),
 
       // top-level
-      urgency: trim(form.urgency),          // Low | Medium | High | On-site
-      category: trim(form.category),        // On-Site Troubleshooting | Service Request | FlowSite Requests | SCADA/Comms | Other
+      urgency: trim(form.urgency),
+      category: trim(form.category),
       subject: trim(form.subject),
       description: trim(form.description),
 
