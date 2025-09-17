@@ -39,10 +39,11 @@
   .urgency-option .utext small{font-weight:400;color:#6b7280}
   .urgency-option input{accent-color: var(--brand);margin-top:2px}
 
-  /* Vertical radio lists */
-  .list-group{display:flex;flex-direction:column;gap:8px;align-items:flex-start;width:100%}
-  .list-option{display:flex;align-items:center;gap:10px;padding:4px 0}
+  /* Vertical radio lists (left aligned, single-line text) */
+  .list-group{display:flex;flex-direction:column;gap:8px;align-items:flex-start;text-align:left;width:100%;padding-left:0}
+  .list-option{display:flex;align-items:center;gap:10px;margin:0;padding:4px 0;text-align:left;white-space:nowrap;justify-content:flex-start}
   .list-option input{accent-color:var(--brand);margin:0}
+  .list-option span{display:inline-block;white-space:nowrap}
 
   .subhead{display:block;margin-top:16px;margin-bottom:8px;font-weight:800;font-size:1.125rem;color:var(--brand)}
 
@@ -82,7 +83,10 @@
     .actions{flex-direction:column}
     .actions button{width:100%}
     .urgency-group{flex-direction:column;column-gap:0;row-gap:8px}
+    /* allow wrapping on small screens so text doesn't overflow */
+    .list-option, .list-option span{white-space:normal}
     .list-option input{transform:scale(1.15)}
+    .chip span{padding:10px 14px}
   }
 </style>
 </head>
