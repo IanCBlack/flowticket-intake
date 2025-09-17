@@ -1,59 +1,67 @@
 // netlify/functions/submit-ticket.js
-const { randomInt } = require('crypto');
-
-const cors = (origin = '*') => ({
-  'Access-Control-Allow-Origin': origin,
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-});
-
-// 8-char uppercase letters + digits (similar to AppSheet UNIQUEID())
-function uniqueId8() {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let out = '';
-  for (let i = 0; i < 8; i++) out += alphabet[randomInt(0, alphabet.length)];
-  return out;
-}
+const crypto = require('crypto');
 
 exports.handler = async (event) => {
-  const ORIGIN = process.env.ALLOWED_ORIGIN || '*';
-
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers: cors(ORIGIN), body: '' };
-  }
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers: cors(ORIGIN), body: 'Use POST' };
+    return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
   try {
-    // Only send the key for now
-    const ticketId = uniqueId8();
-    const row = { TicketID: ticketId };
-
-    const appId = process.env.APPSHEET_APP_ID;
-    const accessKey = process.env.APPSHEET_ACCESS_KEY;
-    const tableName = process.env.TABLE_NAME || 'Tickets';
-    const url = `https://api.appsheet.com/api/v2/apps/${appId}/tables/${encodeURIComponent(tableName)}/Action`;
-    const body = { Action: 'Add', Properties: { Locale: 'en-US' }, Rows: [row] };
-
-    const apiRes = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'ApplicationAccessKey': accessKey },
-      body: JSON.stringify(body),
-    });
-
-    const text = await apiRes.text();
-    console.log('AppSheet status:', apiRes.status);
-    console.log('Row attempted:', JSON.stringify(row));
-    console.log('AppSheet body:', text || '(empty)');
-
-    if (!apiRes.ok) {
-      return { statusCode: 200, headers: cors(ORIGIN), body: JSON.stringify({ ok:false, error:`AppSheet ${apiRes.status}: ${text}` }) };
+    const { APPSHEET_APP_ID, APPSHEET_ACCESS_KEY, APPSHEET_TABLE } = process.env;
+    if (!APPSHEET_APP_ID || !APPSHEET_ACCESS_KEY) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ ok: false, error: 'Missing APPSHEET_APP_ID or APPSHEET_ACCESS_KEY env var' })
+      };
     }
 
-    return { statusCode: 200, headers: cors(ORIGIN), body: JSON.stringify({ ok:true, id: ticketId }) };
+    const table = APPSHEET_TABLE || 'Tickets';
+
+    // 8-char ID similar to your UNIQUEID() convention
+    const ticketId = crypto.randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase();
+
+    // Only send columns that are guaranteed to exist. We’ll map more later.
+    const appsheetBody = {
+      Action: 'Add',
+      Properties: {
+        Locale: 'en-US'
+      },
+      Rows: [
+        { TicketID: ticketId }
+      ]
+    };
+
+    const url = `https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/${encodeURIComponent(table)}/Action`;
+
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'ApplicationAccessKey': APPSHEET_ACCESS_KEY
+      },
+      body: JSON.stringify(appsheetBody)
+    });
+
+    const text = await resp.text();
+
+    if (!resp.ok) {
+      return {
+        statusCode: resp.status,
+        body: JSON.stringify({ ok: false, error: text })
+      };
+    }
+
+    // You can inspect the submitted form if needed:
+    // const { form } = JSON.parse(event.body || '{}');
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ ok: true, ticketId })
+    };
   } catch (err) {
-    console.error('Submit error:', err);
-    return { statusCode: 200, headers: cors(ORIGIN), body: JSON.stringify({ ok:false, error:String(err) }) };
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ ok: false, error: err.message })
+    };
   }
 };
