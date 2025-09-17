@@ -1,67 +1,69 @@
-// netlify/functions/submit-ticket.js
-const crypto = require('crypto');
+// Netlify Function -> AppSheet: Add a row to "Tickets"
+const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args));
 
 exports.handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
-  }
-
   try {
-    const { APPSHEET_APP_ID, APPSHEET_ACCESS_KEY, APPSHEET_TABLE } = process.env;
-    if (!APPSHEET_APP_ID || !APPSHEET_ACCESS_KEY) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ ok: false, error: 'Missing APPSHEET_APP_ID or APPSHEET_ACCESS_KEY env var' })
-      };
+    if (event.httpMethod !== 'POST') {
+      return { statusCode: 405, body: 'Method Not Allowed' };
     }
 
-    const table = APPSHEET_TABLE || 'Tickets';
+    const { form } = JSON.parse(event.body || '{}') || {};
+    if (!form || typeof form !== 'object') {
+      return { statusCode: 400, body: 'Missing form payload' };
+    }
 
-    // 8-char ID similar to your UNIQUEID() convention
-    const ticketId = crypto.randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase();
+    // ---- ENV (set in Netlify UI) ----
+    const {
+      APPSHEET_APP_ID,           // e.g. 47c21a86-76f7-419c-886b-8f7be00bd90a
+      APPSHEET_ACCESS_KEY,       // your Application Access Key
+      APPSHEET_TABLE = 'Tickets',
+      APPSHEET_REGION = 'www.appsheet.com' // or eu.appsheet.com / asia-southeast.appsheet.com
+    } = process.env;
 
-    // Only send columns that are guaranteed to exist. We’ll map more later.
-    const appsheetBody = {
-      Action: 'Add',
+    if (!APPSHEET_APP_ID || !APPSHEET_ACCESS_KEY) {
+      return { statusCode: 500, body: 'Server not configured (AppSheet env vars missing)' };
+    }
+
+    // Build AppSheet request
+    const url = `https://${APPSHEET_REGION}/api/v2/apps/${encodeURIComponent(APPSHEET_APP_ID)}/tables/${encodeURIComponent(APPSHEET_TABLE)}/Action`;
+
+    // NOTE: AppSheet expects the action wrapper below
+    const body = {
+      Action: "Add",
       Properties: {
-        Locale: 'en-US'
+        Locale: "en-US",
+        Timezone: "America/Chicago",
+        // Optional: pass through user identity for auditing if desired
+        // UserId: form.Email || ""
       },
       Rows: [
-        { TicketID: ticketId }
+        {
+          // Send everything; columns that match will be written, others ignored.
+          // Tip: Make your AppSheet column names match these keys.
+          ...form,
+          Timestamp: new Date().toISOString() // if your table has a Timestamp column
+        }
       ]
     };
-
-    const url = `https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/${encodeURIComponent(table)}/Action`;
 
     const resp = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'ApplicationAccessKey': APPSHEET_ACCESS_KEY
+        'ApplicationAccessKey': APPSHEET_ACCESS_KEY,
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(appsheetBody)
+      body: JSON.stringify(body)
     });
 
     const text = await resp.text();
-
     if (!resp.ok) {
-      return {
-        statusCode: resp.status,
-        body: JSON.stringify({ ok: false, error: text })
-      };
+      return { statusCode: resp.status, body: text || 'AppSheet API error' };
     }
 
-    // You can inspect the submitted form if needed:
-    // const { form } = JSON.parse(event.body || '{}');
+    // AppSheet returns the inserted row(s)
+    return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: text };
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ ok: true, ticketId })
-    };
   } catch (err) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ ok: false, error: err.message })
-    };
+    return { statusCode: 500, body: `Error: ${err.message}` };
   }
 };
